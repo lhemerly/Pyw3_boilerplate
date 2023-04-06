@@ -1,0 +1,32 @@
+on:
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    steps:  
+        - name: Install NPM dependencies
+          run: npm install
+
+        - name: Install PIP dependencies
+          run: python -m pip install -r requirements.txt
+          
+        - name: Run Linter
+          run: npm run lint
+          
+        - name: Run Prettier
+          run: npm run prettier
+          
+        - name: Activate the virtual env
+          run: ./.venv/scripts/activate
+          
+        - name: Compile Contracts
+          run: brownie compile
+          
+        - name: Run tests
+          run: brownie test
+          
+        - name: Run Slither
+          run: Slither
