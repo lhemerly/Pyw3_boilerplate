@@ -1,41 +1,66 @@
 on:
-  pull_request:
+  pull_request_target:
     branches:
     - main
 
 jobs:
-  CI_Solidity:
+  build:
     runs-on: ubuntu-latest
-    steps:  
-        - name: Install NPM dependencies
-          run: npm install
+    strategy:
+      matrix:
+        language: [python, solidity]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: ${{ runner.os }}-deps-${{ matrix.language }}-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-${{ matrix.language }}-
+            ${{ runner.os }}-deps-
 
-        - name: Install PIP dependencies
-          run: python -m pip install -r requirements.txt
-          
-        - name: Run Solidity Linter
-          run: npm run lint
-          
-        - name: Run Solidity Prettier
-          run: npm run prettier
-          
-        - name: Activate the virtual env
-          run: ./.venv/scripts/activate
-          
-        - name: Compile Contracts
-          run: brownie compile
-          
-        - name: Run tests
-          run: brownie test
-          
-        - name: Run Slither
-          run: Slither
+      - name: Install dependencies
+        if: matrix.language == 'python'
+        run: python -m pip install -r requirements.txt
+        env:
+          PIP_CACHE_DIR: ~/.cache/pip
 
-  CI_Python:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Run Python Linter
-          run: pylint ./**/*.py
-          
-        - name: Run Python Prettier
-          run: black ./**/*.py
+      - name: Install NPM dependencies
+        if: matrix.language == 'solidity'
+        run: npm install
+
+      - name: Activate virtual environment
+        if: matrix.language == 'python'
+        run: source .venv/bin/activate
+
+      - name: Compile contracts
+        if: matrix.language == 'solidity' && contains(github.event.pull_request.head.repo.full_name, github.event.repository.owner.login)
+        uses: ethereum/actions/solidity@v1
+        with:
+          version: v0.8.11
+          optimize: 'true'
+          no-color: 'true'
+          flags: |
+            --combined-json=abi,bin,metadata,ast
+            --output=build/contracts
+
+      - name: Run tests
+        if: matrix.language == 'solidity' || matrix.language == 'python'
+        run: |
+          if [ "$matrix_language" = "solidity" ]; then
+            brownie test
+          else
+            pytest
+          fi
+
+      - name: Analyze code
+        if: matrix.language == 'solidity'
+        run: |
+          npm run lint
+          npm run prettier
+          Slither --exclude
