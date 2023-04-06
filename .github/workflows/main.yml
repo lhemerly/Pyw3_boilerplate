@@ -4,7 +4,7 @@ on:
     - main
 
 jobs:
-  CI:
+  CI_Solidity:
     runs-on: ubuntu-latest
     steps:  
         - name: Install NPM dependencies
@@ -13,10 +13,10 @@ jobs:
         - name: Install PIP dependencies
           run: python -m pip install -r requirements.txt
           
-        - name: Run Linter
+        - name: Run Solidity Linter
           run: npm run lint
           
-        - name: Run Prettier
+        - name: Run Solidity Prettier
           run: npm run prettier
           
         - name: Activate the virtual env
@@ -30,3 +30,12 @@ jobs:
           
         - name: Run Slither
           run: Slither
+
+  CI_Python:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Run Python Linter
+          run: pylint ./**/*.py
+          
+        - name: Run Python Prettier
+          run: black ./**/*.py
